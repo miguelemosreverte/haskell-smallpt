@@ -180,10 +180,6 @@ radiance'' scene obj ray t rlt depth = do
     nextRad <- (radiance scene (Ray (x, ndir)) (succ depth))
     return $ (emit obj) + ((f * nextRad) `mul` (1.0 / (rlt * pdf)))
 
-convert :: [IO a] -> IO [a]
-convert [] = return []
-convert (x:xs) = (:) <$> x <*> (convert xs)
-
 toByte :: Double -> W.Word8
 toByte x = truncate (((clamp x) ** (1.0 / 2.2)) * 255.0) :: W.Word8
 
@@ -216,7 +212,7 @@ main = do
     let dirs = [ norm $ (dir cam) + (cy `mul` (y / dh  - 0.5)) + (cx `mul` (x / dw - 0.5)) | (y, x) <- liftM2 (,) [dh-1,dh-2..0] [0..dw-1] ]
     let rays = [ Ray ((org cam) + (d `mul` 140.0), (norm d)) | d <- dirs ]
 
-    pixels <- convert $ map (\r -> accumulateRadiance (radiance sph r 0) 0 spp) rays
+    pixels <- foldr (\e lst -> (:) <$> e <*> lst) (return []) $ [ (accumulateRadiance (radiance sph r 0) 0 spp) | r <- rays ]
 
     let pixelData = map toByte $ foldr (\col lst -> [(x col), (y col), (z col)] ++ lst) [] pixels
     let pixelBytes = V.fromList pixelData :: V.Vector W.Word8
