@@ -1,6 +1,7 @@
 -- Small path tracing with Haskell
 import System.Environment
 import System.Random.Mersenne
+import System.IO.Unsafe
 import Control.Monad
 import Codec.Picture
 import Data.Time
@@ -106,15 +107,15 @@ intersect sp ray =
 -- Scene
 type Scene = [Sphere]
 sph :: Scene
-sph =  [ Sphere (1e5,  Vec ( 1e5+1,  40.8, 81.6),    Vec (0.0, 0.0, 0.0), Vec (0.75, 0.25, 0.25),  Diff) ] -- Left
-    ++ [ Sphere (1e5,  Vec (-1e5+99, 40.8, 81.6),    Vec (0.0, 0.0, 0.0), Vec (0.25, 0.25, 0.75),  Diff) ] -- Right
-    ++ [ Sphere (1e5,  Vec (50.0, 40.8,  1e5),       Vec (0.0, 0.0, 0.0), Vec (0.75, 0.75, 0.75),  Diff) ] -- Back
-    ++ [ Sphere (1e5,  Vec (50.0, 40.8, -1e5+170),   Vec (0.0, 0.0, 0.0), Vec (0.0, 0.0, 0.0),     Diff) ] -- Front
-    ++ [ Sphere (1e5,  Vec (50, 1e5, 81.6),          Vec (0.0, 0.0, 0.0), Vec (0.75, 0.75, 0.75),  Diff) ] -- Bottom
-    ++ [ Sphere (1e5,  Vec (50,-1e5+81.6,81.6),      Vec (0.0, 0.0, 0.0), Vec (0.75, 0.75, 0.75),  Diff) ] -- Top
-    ++ [ Sphere (16.5, Vec (27, 16.5, 47),           Vec (0.0, 0.0, 0.0), Vec (1,1,1) `mul` 0.999, Spec) ] -- Mirror
-    ++ [ Sphere (16.5, Vec (73, 16.5, 78),           Vec (0.0, 0.0, 0.0), Vec (1,1,1) `mul` 0.999, Refr) ] -- Glass
-    ++ [ Sphere (600,  Vec (50, 681.6 - 0.27, 81.6), Vec (12, 12, 12),    Vec (0, 0, 0),           Diff) ] -- Light
+sph = [ Sphere (1e5,  Vec ( 1e5+1,  40.8, 81.6),    Vec (0.0, 0.0, 0.0), Vec (0.75, 0.25, 0.25),  Diff)   -- Left
+      , Sphere (1e5,  Vec (-1e5+99, 40.8, 81.6),    Vec (0.0, 0.0, 0.0), Vec (0.25, 0.25, 0.75),  Diff)   -- Right
+      , Sphere (1e5,  Vec (50.0, 40.8,  1e5),       Vec (0.0, 0.0, 0.0), Vec (0.75, 0.75, 0.75),  Diff)   -- Back
+      , Sphere (1e5,  Vec (50.0, 40.8, -1e5+170),   Vec (0.0, 0.0, 0.0), Vec (0.0, 0.0, 0.0),     Diff)   -- Front
+      , Sphere (1e5,  Vec (50, 1e5, 81.6),          Vec (0.0, 0.0, 0.0), Vec (0.75, 0.75, 0.75),  Diff)   -- Bottom
+      , Sphere (1e5,  Vec (50,-1e5+81.6,81.6),      Vec (0.0, 0.0, 0.0), Vec (0.75, 0.75, 0.75),  Diff)   -- Top
+      , Sphere (16.5, Vec (27, 16.5, 47),           Vec (0.0, 0.0, 0.0), Vec (1,1,1) `mul` 0.999, Spec)   -- Mirror
+      , Sphere (16.5, Vec (73, 16.5, 78),           Vec (0.0, 0.0, 0.0), Vec (1,1,1) `mul` 0.999, Refr)   -- Glass
+      , Sphere (600,  Vec (50, 681.6 - 0.27, 81.6), Vec (12, 12, 12),    Vec (0, 0, 0),           Diff) ] -- Light
 
 -- Utility functions
 clamp :: Double -> Double
@@ -171,49 +172,39 @@ refract v n orn rr =
 radiance :: Scene -> Ray -> Int -> IO Vec
 radiance scene ray depth = do
     let (t, i) = (isectWithScene scene ray)
-    r0 <- nextDouble
-    r1 <- nextDouble
-    r2 <- nextDouble
     if inf <= t
         then return (Vec (0, 0, 0))
-        else (radiance' scene ray depth (scene !! i) t r0 r1 r2)
-
-radiance' :: Scene -> Ray -> Int -> Sphere -> Double -> Double -> Double -> Double -> IO Vec
-radiance' scene ray depth obj t r0 r1 r2 = do
-    let c = col obj
-    let rlt = (max (x c) (max (y c) (z c)))
-    if depth < 5
-        then radiance'' scene ray depth obj t 1.0 r1 r2
-        else
-            if r0 >= rlt
-                then return $! (emit obj)
-                else radiance'' scene ray depth obj t rlt r1 r2
-
-radiance'' :: Scene -> Ray -> Int -> Sphere -> Double -> Double -> Double -> Double -> IO Vec
-radiance'' scene ray depth obj t rlt r1 r2 = do
-    let f = (col obj)
-    let d = (dir ray)
-    let x = (org ray) + (d `mul` t)
-    let n = norm $ x - (pos obj)
-    let orn = if (d `dot` n) < 0.0  then n else (-n)
-    let (ndir, pdf) = case (refl obj) of
-            Diff -> (lambert orn r1 r2)
-            Spec -> (reflect d orn)
-            Refr -> (refract d n orn r1)
-    nextRad <- (radiance scene (Ray (x, ndir)) (succ depth))
-    return $! ((emit obj) + ((f * nextRad) `mul` (1.0 / (rlt * pdf))))
+        else do
+            r0 <- nextDouble
+            r1 <- nextDouble
+            r2 <- nextDouble
+            let obj = (scene !! i)
+            let c = col obj
+            let prob = (max (x c) (max (y c) (z c)))
+            if depth >= 5 && r0 >= prob
+                then return (emit obj)
+                else do
+                    let rlt = if depth < 5 then 1 else prob
+                    let f = (col obj)
+                    let d = (dir ray)
+                    let x = (org ray) + (d `mul` t)
+                    let n = norm $ x - (pos obj)
+                    let orn = if (d `dot` n) < 0.0  then n else (-n)
+                    let (ndir, pdf) = case (refl obj) of
+                            Diff -> (lambert orn r1 r2)
+                            Spec -> (reflect d orn)
+                            Refr -> (refract d n orn r1)
+                    nextRad <- (radiance scene (Ray (x, ndir)) (succ depth))
+                    return $ ((emit obj) + ((f * nextRad) `mul` (1.0 / (rlt * pdf))))
 
 toByte :: Double -> W.Word8
 toByte x = truncate (((clamp x) ** (1.0 / 2.2)) * 255.0) :: W.Word8
 
 accumulateRadiance :: Scene -> Ray -> Int -> Int -> IO Vec
-accumulateRadiance scene ray d m
-    | d == m    = do
-        return (Vec (0.0, 0.0, 0.0))
-    | otherwise = do
-        r1 <- radiance scene ray 0
-        r2 <- (accumulateRadiance scene ray (succ d) m)
-        return $! ((r1 `mul` (1.0 / fromIntegral m)) + r2)
+accumulateRadiance scene ray d m = do
+    let rays = take m $ repeat ray
+    pixels <- sequence [radiance scene r 0 | r <- rays]
+    return $ (foldr1 (+) pixels) `mul` (1 / fromIntegral m)
 
 main :: IO ()
 main = do
@@ -236,10 +227,10 @@ main = do
     let cam = Ray (Vec (50, 52, 295.6), (norm $ Vec (0, -0.042612, -1)));
     let cx  = Vec (dw * 0.5135 / dh, 0.0, 0.0)
     let cy  = (norm $ cx `cross` (dir cam)) `mul` 0.5135
-    let dirs = [ norm $ (dir cam) + (cy `mul` (y / dh  - 0.5)) + (cx `mul` (x / dw - 0.5)) | (y, x) <- liftM2 (,) [dh-1,dh-2..0] [0..dw-1] ]
+    let dirs = [ norm $ (dir cam) + (cy `mul` (y / dh  - 0.5)) + (cx `mul` (x / dw - 0.5)) | y <- [dh-1,dh-2..0], x <- [0..dw-1] ]
     let rays = [ Ray ((org cam) + (d `mul` 140.0), (norm d)) | d <- dirs ]
 
-    pixels <- sequence [ (accumulateRadiance sph r 0 spp) | r <- rays ]
+    let pixels = [ (unsafePerformIO (accumulateRadiance sph r 0 spp)) | r <- rays ]
 
     let pixelData = map toByte $! pixels `seq` (foldr (\col lst -> [(x col), (y col), (z col)] ++ lst) [] pixels)
     let pixelBytes = V.fromList pixelData :: V.Vector W.Word8
