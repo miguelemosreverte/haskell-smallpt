@@ -13,7 +13,7 @@ $ ./Smallpt [width] [height] [samples]
 
 ## Result
 
-![result](image.png)
+![result](result.png)
 
 (800 x 600, 128 samples per pixel)
 
