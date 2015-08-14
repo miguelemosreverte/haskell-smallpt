@@ -1,12 +1,13 @@
 -- Small path tracing with Haskell
 import System.Environment
-import System.Random.Mersenne
-import System.IO.Unsafe
 import Control.Monad
+import Control.Monad.Random
 import Codec.Picture
 import Data.Time
 import qualified Data.Word as W
 import qualified Data.Vector.Storable as V
+
+import Debug.Trace
 
 -- Parameters
 eps :: Double
@@ -124,9 +125,6 @@ clamp = (max 0.0) . (min 1.0)
 isectWithScene :: Scene -> Ray -> (Double, Int)
 isectWithScene scene ray = foldr1 (min) $ zip [ intersect sph ray | sph <- scene ] [0..]
 
-nextDouble :: IO Double
-nextDouble = randomIO
-
 lambert :: Vec -> Double -> Double -> (Vec, Double)
 lambert n r1 r2 =
     let th  = 2.0 * pi * r1
@@ -169,15 +167,15 @@ refract v n orn rr =
                          then (rdir, (pp / re))
                          else (tdir, ((1.0 - pp) / tr))
 
-radiance :: Scene -> Ray -> Int -> IO Vec
+radiance :: (RandomGen g) => Scene -> Ray -> Int -> Rand g Vec
 radiance scene ray depth = do
     let (t, i) = (isectWithScene scene ray)
     if inf <= t
         then return (Vec (0, 0, 0))
         else do
-            r0 <- nextDouble
-            r1 <- nextDouble
-            r2 <- nextDouble
+            r0 <- getRandomR (0.0, 1.0)
+            r1 <- getRandomR (0.0, 1.0)
+            r2 <- getRandomR (0.0, 1.0)
             let obj = (scene !! i)
             let c = col obj
             let prob = (max (x c) (max (y c) (z c)))
@@ -200,11 +198,11 @@ radiance scene ray depth = do
 toByte :: Double -> W.Word8
 toByte x = truncate (((clamp x) ** (1.0 / 2.2)) * 255.0) :: W.Word8
 
-accumulateRadiance :: Scene -> Ray -> Int -> Int -> IO Vec
-accumulateRadiance scene ray d m = do
-    let rays = take m $ repeat ray
-    pixels <- sequence [radiance scene r 0 | r <- rays]
-    return $ (foldr1 (+) pixels) `mul` (1 / fromIntegral m)
+accumulateRadiance :: (RandomGen g) => Scene -> Ray -> Int -> Rand g Vec
+accumulateRadiance scene ray spp = do
+    let rays = take spp $ repeat ray
+    pixels <- sequence [ (radiance scene r 0) | r <- rays]
+    return $ (foldr1 (+) pixels) `mul` (1 / fromIntegral spp)
 
 main :: IO ()
 main = do
@@ -230,7 +228,8 @@ main = do
     let dirs = [ norm $ (dir cam) + (cy `mul` (y / dh  - 0.5)) + (cx `mul` (x / dw - 0.5)) | y <- [dh-1,dh-2..0], x <- [0..dw-1] ]
     let rays = [ Ray ((org cam) + (d `mul` 140.0), (norm d)) | d <- dirs ]
 
-    let pixels = [ (unsafePerformIO (accumulateRadiance sph r 0 spp)) | r <- rays ]
+    gen <- getStdGen
+    let pixels = evalRand (sequence [ (accumulateRadiance sph r spp) | r <- rays]) gen :: [Vec]
 
     let pixelData = map toByte $! pixels `seq` (foldr (\col lst -> [(x col), (y col), (z col)] ++ lst) [] pixels)
     let pixelBytes = V.fromList pixelData :: V.Vector W.Word8
