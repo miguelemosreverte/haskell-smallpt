@@ -1,14 +1,15 @@
 haskell-smallpt
 ===
 
-> Haskell implementation for "smallpt" (small path tracing).
+> Haskell implementation for "smallpt" (small path tracing). The code is written for read clarity, so it is a little longer than the original C version.
 
 ## Usage
 
 ```shell
-$ cabal install juicypixels
-$ ghc -O2 Smallpt.hs
-$ ./Smallpt [width] [height] [samples]
+$ cabal install --only-dependencies
+$ cabal configure
+$ cabal build
+$ cabal run [width] [height] [samples]
 ```
 
 ## Result
