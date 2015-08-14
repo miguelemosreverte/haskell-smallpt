@@ -215,7 +215,7 @@ tracePath scene cam x y w h spp = do
     del <- sequence (take 4 (repeat subsample))
     let sub = [ (dx, dy) | dx <- [0..1], dy <- [0..1] ]
     let crd = take 4 (repeat (x, y))
-    let pos = [ (((sx + 0.5 + dx) / 2 + x) / w - 0.5, ((sy + 0.5 + dy) / 2 + y) / h - 0.5) | (x, y) <- crd, (sx, sy) <- sub, (dx, dy) <- del ]
+    let pos = [ (((sx + 0.5 + dx) / 2 + x) / w - 0.5, ((sy + 0.5 + dy) / 2 + y) / h - 0.5) | (x, y) <- crd | (sx, sy) <- sub | (dx, dy) <- del ]
     let dirs = [ (dir cam) + cx `mul` xx + cy `mul` yy | (xx, yy) <- pos ]
     let rays = [ Ray ((org cam) + (d `mul` 140.0), (norm d)) | d <- dirs ]
     pixels <- sequence [ (radiance scene r 0) | r <- rays]

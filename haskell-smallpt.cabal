@@ -18,6 +18,7 @@ cabal-version:       >=1.10
 
 executable haskell-smallpt
   main-is:             Smallpt.hs
+  extensions:          ParallelListComp
   -- other-modules:
   -- other-extensions:
   build-depends:       base >=4.8 && <4.9, MonadRandom >=0.4 && <0.5, JuicyPixels >=3.2 && <3.3, time >=1.5 && <1.6, vector >=0.11 && <0.12
