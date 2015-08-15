@@ -3,7 +3,6 @@ import System.Environment
 import Control.Monad
 import Control.Monad.Random
 import Control.Applicative
---import Control.Parallel
 import Codec.Picture
 import Data.Time
 import Data.Functor
@@ -159,7 +158,7 @@ radiance scene ray depth = do
                                 where th  = 2.0 * pi * r1
                                       r2s = sqrt r2
                                       w = nl
-                                      u = norm $ (if (abs (x w)) > eps then Vec (0, 1, 0) else Vec (1, 0, 0)) `cross` w
+                                      u = norm $ (if (abs (x w)) > 0.1 then Vec (0, 1, 0) else Vec (1, 0, 0)) `cross` w
                                       v = w `cross` u
                                       uu = u `mul` ((cos th) * r2s)
                                       vv = v `mul` ((sin th) * r2s)
@@ -193,8 +192,8 @@ radiance scene ray depth = do
                                                                then fmap (`mul` (re / pp)) (radiance scene (Ray (p, rdir)) (succ depth))
                                                                else fmap (`mul` (tr / (1.0 - pp))) (radiance scene (Ray (p, tdir)) (succ depth))
                                                         else
-                                                            (\r t -> (r `mul` re) + (r `mul` tr)) <$> (radiance scene (Ray (p, rdir)) (succ depth)) <*> (radiance scene (Ray (p, tdir)) (succ depth))
-                    return $! (emit obj) + ((f * nextRad) `mul` (1/rlt))
+                                                            (\r t -> (r `mul` re) + (t `mul` tr)) <$> (radiance scene (Ray (p, rdir)) (succ depth)) <*> (radiance scene (Ray (p, tdir)) (succ depth))
+                    return $ (emit obj) + ((f * nextRad) `mul` (1/rlt))
 
 toByte :: Double -> W.Word8
 toByte x = truncate (((clamp x) ** (1.0 / 2.2)) * 255.0) :: W.Word8
@@ -205,7 +204,7 @@ subsample = do
     r2 <- nextDouble
     let dx = if r1 < 1 then (sqrt r1) - 1 else 1 - (sqrt (2 - r1))
     let dy = if r2 < 1 then (sqrt r2) - 1 else 1 - (sqrt (2 - r2))
-    return $! (dx, dy)
+    return $ (dx, dy)
 
 tracePath :: (RandomGen g) => Scene -> Camera -> Double -> Double -> Double -> Double -> Int -> Rand g Vec
 tracePath scene cam x y w h spp = do
@@ -215,11 +214,11 @@ tracePath scene cam x y w h spp = do
     del <- sequence (take 4 (repeat subsample))
     let sub = [ (dx, dy) | dx <- [0..1], dy <- [0..1] ]
     let crd = take 4 (repeat (x, y))
-    let pos = [ (((sx + 0.5 + dx) / 2 + x) / w - 0.5, ((sy + 0.5 + dy) / 2 + y) / h - 0.5) | (x, y) <- crd | (sx, sy) <- sub | (dx, dy) <- del ]
+    let pos = [ (((sx + 0.5 + dx) / 2 + x) / w - 0.5, ((sy + 0.5 + dy) / 2 + y) / h - 0.5) | ((x, y), (sx, sy), (dx, dy)) <- zip3 crd sub del ]
     let dirs = [ (dir cam) + cx `mul` xx + cy `mul` yy | (xx, yy) <- pos ]
     let rays = [ Ray ((org cam) + (d `mul` 140.0), (norm d)) | d <- dirs ]
-    pixels <- sequence [ (radiance scene r 0) | r <- rays]
-    return $! (foldr1 (+) pixels) `mul` (1 / (4 * fromIntegral spp))
+    pixels <- sequence [ (radiance scene r 0) | r <- (foldr1 (++) $ take spp $ repeat rays) ]
+    return $ (foldr1 (+) pixels) `mul` (1 / (4 * fromIntegral spp))
 
 main :: IO ()
 main = do
@@ -243,9 +242,8 @@ main = do
     gen <- getStdGen
 
     let cam = Ray (Vec (50, 52, 295.6), (norm $ Vec (0, -0.042612, -1)));
-    let pixels = evalRand (sequence [ (tracePath sph cam x y ww hh spp) | y <- [hh-1,hh-2..0], x <- [0..ww-1] ]) gen :: [Vec]
-
-    let pixelData = map toByte $! pixels `seq` (foldr (\col lst -> [(x col), (y col), (z col)] ++ lst) [] pixels)
+    let pixels = evalRand (sequence $ [ (tracePath sph cam x y ww hh spp) | y <- [hh-1,hh-2..0], x <- [0..ww-1] ]) gen :: [Vec]
+    let pixelData = map toByte $ pixels `seq` (foldr (\col lst -> [(x col), (y col), (z col)] ++ lst) [] pixels)
     let pixelBytes = V.fromList pixelData :: V.Vector W.Word8
     let img = Image { imageHeight = h, imageWidth = w, imageData = pixelBytes } :: Image PixelRGB8
     writePng "image.png" img
