@@ -200,8 +200,8 @@ toByte x = truncate (((clamp x) ** (1.0 / 2.2)) * 255.0) :: W.Word8
 
 subsample :: (RandomGen g) => Rand g (Double, Double)
 subsample = do
-    r1 <- nextDouble
-    r2 <- nextDouble
+    r1 <- fmap (* 2) nextDouble
+    r2 <- fmap (* 2) nextDouble
     let dx = if r1 < 1 then (sqrt r1) - 1 else 1 - (sqrt (2 - r1))
     let dy = if r2 < 1 then (sqrt r2) - 1 else 1 - (sqrt (2 - r2))
     return $ (dx, dy)
