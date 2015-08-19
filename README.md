@@ -16,7 +16,9 @@ $ cabal run [width] [height] [samples]
 
 ![result](result.png)
 
-(800 x 600, 128 samples per pixel)
+**(800 x 600, 512 samples per pixel)**
+
+**Computation took 28000 secs with 1.8 GHz CPU**
 
 ## License
 
