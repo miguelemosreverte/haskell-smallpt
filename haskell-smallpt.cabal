@@ -2,9 +2,9 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                haskell-smallpt
-version:             1.0.0.0
+version:             0.1.0.0
 synopsis:            Haskell implementation of smallpt (small path tracing of C)
-description:         Haskell implementation of smallpt (small path tracing of C)
+-- description:
 homepage:            https://github.com/tatsy/haskell-smallpt.git
 license:             MIT
 license-file:        LICENSE
@@ -18,13 +18,9 @@ cabal-version:       >=1.10
 
 executable haskell-smallpt
   main-is:             Smallpt.hs
-  ghc-options:         -threaded
+  ghc-options:         -threaded -fwarn-unused-do-bind
   -- other-modules:
   -- other-extensions:
-  build-depends:       base >=4.8 && <4.9, parallel >= 3.2 && <3.3, MonadRandom >=0.4 && <0.5, JuicyPixels >=3.2 && <3.3, time >=1.5 && <1.6, vector >=0.11 && <0.12
+  build-depends:       base >=4.8 && <4.9, mtl >=2.2 && <2.3, monad-parallel >= 0.7 && <0.8, parallel >=3.2 && <3.3,JuicyPixels >=3.2 && <3.3, time >=1.5 && <1.6, vector >=0.11 && <0.12, mersenne-random-pure64 >=0.2 && <0.3
   -- hs-source-dirs:
   default-language:    Haskell2010
-
-source-repository head
-  type:     git
-  location: https://github.com/tatsy/haskell-smallpt.git
