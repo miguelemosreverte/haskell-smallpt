@@ -40,9 +40,17 @@ dir (Ray (_, dir)) = dir
 -- Material
 data Refl = Diff | Spec | Refr deriving (Show)
 
--- Sphere
+
+-- Triangle object used for triangle meshes
+data Vertex = Vertex { vertPosition :: {-# UNPACK #-} !Vec,
+                       vertUV :: {-# UNPACK #-} !Vec,
+                       vertTangentSpace :: {-# UNPACK #-} !TangentSpace } deriving (Show, Eq)
+data Triangle = Triangle { vertices :: ![Vertex], plane :: !Primitive, halfPlanes :: ![Primitive] } deriving (Show, Eq)
+
+data TangentSpace = TangentSpace (Vec,Vec,Vec)
 --data Sphere = Sphere (Double, Vec, Vec, Vec, Refl) deriving (Show)
 data Primitive = Sphere (Double, Vec, Vec, Vec, Refl)
+  | Plane { planeTangentSpace :: {-# UNPACK #-} !TangentSpace, planeDistance :: {-# UNPACK #-} !Double }
   | EasyTriangle (Vec,Vec,Vec, Vec,Vec,Vec,Refl) deriving (Show)
 
 rad  (Sphere (rad, _, _, _, _   )) = rad
@@ -51,8 +59,13 @@ emit (Sphere (_  , _, e, _, _   )) = e
 col  (Sphere (_  , _, _, c, _   )) = c
 refl (Sphere (_  , _, _, _, refl)) = refl
 
+--https://github.com/bkach/HaskellRaycaster/commit/fdb604bf6b4bab6f9b51e19d8b56ef80a7db4f34
+-- Given a ray and a distance, produce the point along the ray
+pointAlongRay :: Ray -> Double -> Vec
+pointAlongRay ray distance = org ray + (distance `mul` dir ray)
+
 --http://tomhammersley.blogspot.com.ar/2011/04/ray-triangle-intersection-in-haskell.html
-distanceToPlane :: Shape -> Vector -> Float
+distanceToPlane :: Primitive -> Vec -> Float
 distanceToPlane (Plane !norm !dist) !pos = pos `dot` norm + dist
 distanceToPlane _ _ = undefined
 
@@ -67,7 +80,7 @@ shapeClosestIntersect (Plane !(_, _, planeNormal) !planeD) (Ray !rayOrg !rayDir 
           !intercept = ((-planeD) - (rayOrg `dot` planeNormal)) / dirDotNormal
 
 --http://tomhammersley.blogspot.com.ar/2011/04/ray-triangle-intersection-in-haskell.html
-pointInsideTriangle :: Triangle -> Position -> Bool
+pointInsideTriangle :: Triangle -> Vec -> Bool
 pointInsideTriangle !tri !point = foldr (&&) True $ map (\pln -> (distanceToPlane pln point) >= 0) (halfPlanes tri)
 
 --http://tomhammersley.blogspot.com.ar/2011/04/ray-triangle-intersection-in-haskell.html
@@ -76,7 +89,7 @@ intersectRayTriangle !triangle !ray =
     case shapeClosestIntersect (plane triangle) ray of
                     Nothing -> Nothing
                     Just (dist', _) -> if pointInsideTriangle triangle (pointAlongRay ray dist')
-                                       then Just (dist)
+                                       then Just (dist')
                                        else Nothing
 
 intersect :: Primitive -> Ray -> Maybe Double
