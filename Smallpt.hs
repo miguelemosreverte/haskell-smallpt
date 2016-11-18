@@ -80,9 +80,9 @@ distanceToPlane _ _ = error "distanceToPlane: Unsupported primitive for this fun
 --cocodrile-0.1.2/app/src/Primitive.hs
 shapeClosestIntersect :: Primitive -> Ray -> Maybe (Double, Int)
 -- This function intersects a ray with a plane and returns the closest intercept
-shapeClosestIntersect (Plane !(_, _, planeNormal) !planeD) (Ray !rayOrg !rayDir !rayLen)
+shapeClosestIntersect (Plane !(_, _, planeNormal) !planeD) (Ray (!rayOrg, !rayDir))
     | dirDotNormal == 0 = Nothing
-    | intercept >= 0 && intercept <= rayLen = Just (intercept, 0)
+    | intercept >= 0 = Just (intercept, 0)
     | otherwise = Nothing
     where !dirDotNormal = rayDir `dot` planeNormal
           !intercept = ((-planeD) - (rayOrg `dot` planeNormal)) / dirDotNormal
