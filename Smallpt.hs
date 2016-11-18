@@ -1,3 +1,6 @@
+
+{-# LANGUAGE BangPatterns #-}
+
 import System.Environment
 import Control.Monad
 import Control.Monad.State (State, evalState, state)
@@ -47,6 +50,34 @@ pos  (Sphere (_  , p, _, _, _   )) = p
 emit (Sphere (_  , _, e, _, _   )) = e
 col  (Sphere (_  , _, _, c, _   )) = c
 refl (Sphere (_  , _, _, _, refl)) = refl
+
+--http://tomhammersley.blogspot.com.ar/2011/04/ray-triangle-intersection-in-haskell.html
+distanceToPlane :: Shape -> Vector -> Float
+distanceToPlane (Plane !norm !dist) !pos = pos `dot` norm + dist
+distanceToPlane _ _ = undefined
+
+--cocodrile-0.1.2/app/src/Primitive.hs
+shapeClosestIntersect :: Primitive -> Ray -> Maybe (Double, Int)
+-- This function intersects a ray with a plane and returns the closest intercept
+shapeClosestIntersect (Plane !(_, _, planeNormal) !planeD) (Ray !rayOrg !rayDir !rayLen)
+    | dirDotNormal == 0 = Nothing
+    | intercept >= 0 && intercept <= rayLen = Just (intercept, 0)
+    | otherwise = Nothing
+    where !dirDotNormal = rayDir `dot` planeNormal
+          !intercept = ((-planeD) - (rayOrg `dot` planeNormal)) / dirDotNormal
+
+--http://tomhammersley.blogspot.com.ar/2011/04/ray-triangle-intersection-in-haskell.html
+pointInsideTriangle :: Triangle -> Position -> Bool
+pointInsideTriangle !tri !point = foldr (&&) True $ map (\pln -> (distanceToPlane pln point) >= 0) (halfPlanes tri)
+
+--http://tomhammersley.blogspot.com.ar/2011/04/ray-triangle-intersection-in-haskell.html
+intersectRayTriangle :: Primitive -> Ray -> Maybe Double
+intersectRayTriangle !triangle !ray =
+    case shapeClosestIntersect (plane triangle) ray of
+                    Nothing -> Nothing
+                    Just (dist', _) -> if pointInsideTriangle triangle (pointAlongRay ray dist')
+                                       then Just (dist)
+                                       else Nothing
 
 intersect :: Primitive -> Ray -> Maybe Double
 intersect sph@(Sphere (rad, pos, _, _, _)) ray@(Ray (org, dir)) =
