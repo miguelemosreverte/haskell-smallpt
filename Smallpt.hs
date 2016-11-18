@@ -92,7 +92,7 @@ pointInsideTriangle :: Triangle -> Vec -> Bool
 pointInsideTriangle !tri !point = foldr (&&) True $ map (\pln -> (distanceToPlane pln point) >= 0) (halfPlanes tri)
 
 --http://tomhammersley.blogspot.com.ar/2011/04/ray-triangle-intersection-in-haskell.html
-intersectRayTriangle :: Primitive -> Ray -> Maybe Double
+intersectRayTriangle :: Triangle -> Ray -> Maybe Double
 intersectRayTriangle !triangle !ray =
     case shapeClosestIntersect (plane triangle) ray of
                     Nothing -> Nothing
