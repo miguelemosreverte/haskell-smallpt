@@ -14,7 +14,7 @@ import System.Random.Mersenne.Pure64
 import Debug.Trace
 
 -- Vec
-data Vec = Vec (Double, Double, Double) deriving (Show)
+data Vec = Vec (Double, Double, Double) deriving (Show, Eq)
 instance (Num Vec) where
     (Vec (x, y, z)) + (Vec (a, b, c)) = Vec (x + a, y + b, z + c)
     (Vec (x, y, z)) - (Vec (a, b, c)) = Vec (x - a, y - b, z - c)
@@ -38,8 +38,10 @@ org (Ray (org, _)) = org
 dir (Ray (_, dir)) = dir
 
 -- Material
-data Refl = Diff | Spec | Refr deriving (Show)
+data Refl = Diff | Spec | Refr deriving (Show, Eq)
 
+
+type TangentSpace = (Vec,Vec,Vec)
 
 -- Triangle object used for triangle meshes
 data Vertex = Vertex { vertPosition :: {-# UNPACK #-} !Vec,
@@ -47,11 +49,11 @@ data Vertex = Vertex { vertPosition :: {-# UNPACK #-} !Vec,
                        vertTangentSpace :: {-# UNPACK #-} !TangentSpace } deriving (Show, Eq)
 data Triangle = Triangle { vertices :: ![Vertex], plane :: !Primitive, halfPlanes :: ![Primitive] } deriving (Show, Eq)
 
-data TangentSpace = TangentSpace (Vec,Vec,Vec)
+
 --data Sphere = Sphere (Double, Vec, Vec, Vec, Refl) deriving (Show)
 data Primitive = Sphere (Double, Vec, Vec, Vec, Refl)
   | Plane { planeTangentSpace :: {-# UNPACK #-} !TangentSpace, planeDistance :: {-# UNPACK #-} !Double }
-  | EasyTriangle (Vec,Vec,Vec, Vec,Vec,Vec,Refl) deriving (Show)
+  | EasyTriangle (Vec,Vec,Vec, Vec,Vec,Vec,Refl) deriving (Show, Eq)
 
 rad  (Sphere (rad, _, _, _, _   )) = rad
 pos  (Sphere (_  , p, _, _, _   )) = p
@@ -62,12 +64,18 @@ refl (Sphere (_  , _, _, _, refl)) = refl
 --https://github.com/bkach/HaskellRaycaster/commit/fdb604bf6b4bab6f9b51e19d8b56ef80a7db4f34
 -- Given a ray and a distance, produce the point along the ray
 pointAlongRay :: Ray -> Double -> Vec
-pointAlongRay ray distance = org ray + (distance `mul` dir ray)
+pointAlongRay ray distance = org ray + (dir ray `mul` distance)
 
+{-
 --http://tomhammersley.blogspot.com.ar/2011/04/ray-triangle-intersection-in-haskell.html
-distanceToPlane :: Primitive -> Vec -> Float
+distanceToPlane :: Primitive -> Vec -> Double
 distanceToPlane (Plane !norm !dist) !pos = pos `dot` norm + dist
-distanceToPlane _ _ = undefined
+distanceToPlane _ _ = undefined-}
+
+-- Distance to a plane
+distanceToPlane :: Primitive -> Vec -> Double
+distanceToPlane (Plane !(_, _, norm) !dist) !pos = (pos `dot` norm) + dist
+distanceToPlane _ _ = error "distanceToPlane: Unsupported primitive for this function"
 
 --cocodrile-0.1.2/app/src/Primitive.hs
 shapeClosestIntersect :: Primitive -> Ray -> Maybe (Double, Int)
