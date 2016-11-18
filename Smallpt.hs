@@ -30,6 +30,7 @@ dot (Vec (x, y, z)) (Vec (a, b, c))  = x * a + y * b + z * c
 norm (Vec (x, y, z)) = Vec (x * invnrm, y * invnrm, z * invnrm)
     where invnrm = 1 / sqrt (x * x + y * y + z * z)
 cross (Vec (x, y, z)) (Vec (a, b, c)) = Vec (y * c - b * z, z * a - c * x, x * b - a * y)
+thr (a,b,c) = c
 
 -- Ray
 data Ray = Ray (Vec, Vec) deriving (Show)
@@ -57,9 +58,13 @@ data Primitive = Sphere (Double, Vec, Vec, Vec, Refl)
 
 rad  (Sphere (rad, _, _, _, _   )) = rad
 pos  (Sphere (_  , p, _, _, _   )) = p
+pos  (EasyTriangle (_  ,_  ,_  , p, _, _, _   )) = p
 emit (Sphere (_  , _, e, _, _   )) = e
+emit  (EasyTriangle (_  ,_  ,_  , _, e, _, _   )) = e
 col  (Sphere (_  , _, _, c, _   )) = c
+col  (EasyTriangle (_  ,_  ,_  , _, _, c, _   )) = c
 refl (Sphere (_  , _, _, _, refl)) = refl
+refl  (EasyTriangle (_  ,_  ,_  , _, _, _, refl   )) = refl
 
 --https://github.com/bkach/HaskellRaycaster/commit/fdb604bf6b4bab6f9b51e19d8b56ef80a7db4f34
 -- Given a ray and a distance, produce the point along the ray
@@ -91,6 +96,29 @@ shapeClosestIntersect (Plane !(_, _, planeNormal) !planeD) (Ray (!rayOrg, !rayDi
 pointInsideTriangle :: Triangle -> Vec -> Bool
 pointInsideTriangle !tri !point = foldr (&&) True $ map (\pln -> (distanceToPlane pln point) >= 0) (halfPlanes tri)
 
+-- Surface normal for 3 points
+surfaceNormal :: Vec -> Vec -> Vec -> Vec
+surfaceNormal !v1 !v2 !v3 = (v2 - v1) `cross` (v3 - v1)
+-- Make a plane
+makePlane :: Vec -> Vec -> Vec -> Primitive
+makePlane !v1 !v2 !v3 = Plane (tangent, binormal, normal) (-(v1 `dot` normal))
+    where
+      !normal = norm (surfaceNormal v1 v2 v3)
+      !tangent = norm (v2 - v1)
+      !binormal = norm (v3 - v1)
+-- Make a triangle
+makeTriangle :: Vec -> Vec -> Vec -> Triangle
+makeTriangle !v1 !v2 !v3 = Triangle verts newPlane newHalfPlanes
+    where newPlane = makePlane v1 v2 v3
+          newTanSpace = planeTangentSpace newPlane
+          verts = map (\v -> Vertex v (Vec(0,0,0)) newTanSpace) [v1, v2, v3]
+          edgeVertices = [v1, v2, v3]
+          edges = map norm [v2 - v1, v3 - v2, v1 - v3]
+          edgeNormals = map (\edge -> norm $ thr newTanSpace `cross` edge) edges
+          -- TODO - The two vectors passed here are just dummies but they can fairly easily be derived
+          newHalfPlanes = zipWith (\edgeNormal edgeVertex -> Plane (Vec(0, 0, 1), Vec(0, 1, 0), edgeNormal) (-(edgeNormal `dot` edgeVertex))) edgeNormals edgeVertices
+
+
 --http://tomhammersley.blogspot.com.ar/2011/04/ray-triangle-intersection-in-haskell.html
 intersectRayTriangle :: Triangle -> Ray -> Maybe Double
 intersectRayTriangle !triangle !ray =
@@ -101,6 +129,9 @@ intersectRayTriangle !triangle !ray =
                                        else Nothing
 
 intersect :: Primitive -> Ray -> Maybe Double
+intersect tri@(EasyTriangle (v0,v1,v2, _, _, _, _)) ray =
+  intersectRayTriangle (makeTriangle v0 v1 v2) ray
+
 intersect sph@(Sphere (rad, pos, _, _, _)) ray@(Ray (org, dir)) =
     if det < 0.0 then Nothing else f t1 t2
     where op    = pos - org
@@ -121,8 +152,9 @@ sph = [ Sphere (1e5,  Vec ( 1e5+1,  40.8, 81.6),    Vec (0.0, 0.0, 0.0), Vec (0.
       , Sphere (1e5,  Vec (50.0, 40.8, -1e5+170),   Vec (0.0, 0.0, 0.0), Vec (0.0, 0.0, 0.0),     Diff)   -- Front
       , Sphere (1e5,  Vec (50, 1e5, 81.6),          Vec (0.0, 0.0, 0.0), Vec (0.75, 0.75, 0.75),  Diff)   -- Bottom
       , Sphere (1e5,  Vec (50,-1e5+81.6,81.6),      Vec (0.0, 0.0, 0.0), Vec (0.75, 0.75, 0.75),  Diff)   -- Top
-      , Sphere (16.5, Vec (27, 16.5, 47),           Vec (0.0, 0.0, 0.0), Vec (1,1,1) `mul` 0.999, Spec)   -- Mirror
-      , Sphere (16.5, Vec (73, 16.5, 78),           Vec (0.0, 0.0, 0.0), Vec (1,1,1) `mul` 0.999, Refr)   -- Glass
+      --, Sphere (16.5, Vec (27, 16.5, 47),           Vec (0.0, 0.0, 0.0), Vec (1,1,1) `mul` 0.999, Spec)   -- Mirror
+      --, Sphere (16.5, Vec (73, 16.5, 78),           Vec (0.0, 0.0, 0.0), Vec (1,1,1) `mul` 0.999, Refr)   -- Glass
+      , EasyTriangle (Vec(0,0,50), Vec(0,100,50), Vec (100,0, 50),    Vec (73, 16.5, 78),Vec (12,12,12), Vec (1,1,1) `mul` 0.999, Diff)   -- Glass
       , Sphere (600,  Vec (50, 681.6 - 0.27, 81.6), Vec (12, 12, 12),    Vec (0, 0, 0),           Diff) ] -- Light
 
 -- Utility functions
