@@ -38,7 +38,9 @@ dir (Ray (_, dir)) = dir
 data Refl = Diff | Spec | Refr deriving (Show)
 
 -- Sphere
-data Sphere = Sphere (Double, Vec, Vec, Vec, Refl) deriving (Show)
+--data Sphere = Sphere (Double, Vec, Vec, Vec, Refl) deriving (Show)
+data Primitive = Sphere (Double, Vec, Vec, Vec, Refl)
+  | EasyTriangle (Vec,Vec,Vec, Vec,Vec,Vec,Refl) deriving (Show)
 
 rad  (Sphere (rad, _, _, _, _   )) = rad
 pos  (Sphere (_  , p, _, _, _   )) = p
@@ -46,7 +48,7 @@ emit (Sphere (_  , _, e, _, _   )) = e
 col  (Sphere (_  , _, _, c, _   )) = c
 refl (Sphere (_  , _, _, _, refl)) = refl
 
-intersect :: Sphere -> Ray -> Maybe Double
+intersect :: Primitive -> Ray -> Maybe Double
 intersect sph@(Sphere (rad, pos, _, _, _)) ray@(Ray (org, dir)) =
     if det < 0.0 then Nothing else f t1 t2
     where op    = pos - org
@@ -59,7 +61,7 @@ intersect sph@(Sphere (rad, pos, _, _, _)) ray@(Ray (org, dir)) =
           f a b = if a > eps then Just a else if b > eps then Just b else Nothing
 
 -- Scene
-type Scene = [Sphere]
+type Scene = [Primitive]
 sph :: Scene
 sph = [ Sphere (1e5,  Vec ( 1e5+1,  40.8, 81.6),    Vec (0.0, 0.0, 0.0), Vec (0.75, 0.25, 0.25),  Diff)   -- Left
       , Sphere (1e5,  Vec (-1e5+99, 40.8, 81.6),    Vec (0.0, 0.0, 0.0), Vec (0.25, 0.25, 0.75),  Diff)   -- Right
