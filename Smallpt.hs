@@ -12,6 +12,8 @@ import qualified Data.Word as W
 import qualified Data.Vector.Storable as V
 import System.Random.Mersenne.Pure64
 import Debug.Trace
+import qualified Data.Text    as Text
+import qualified Data.Text.IO as Text
 
 -- Vec
 data Vec = Vec (Double, Double, Double) deriving (Show, Eq)
@@ -83,11 +85,11 @@ distanceToPlane (Plane !(_, _, norm) !dist) !pos = (pos `dot` norm) + dist
 distanceToPlane _ _ = error "distanceToPlane: Unsupported primitive for this function"
 
 --cocodrile-0.1.2/app/src/Primitive.hs
-shapeClosestIntersect :: Primitive -> Ray -> Maybe (Double, Int)
+shapeClosestIntersect :: Primitive -> Ray -> Maybe Double
 -- This function intersects a ray with a plane and returns the closest intercept
 shapeClosestIntersect (Plane !(_, _, planeNormal) !planeD) (Ray (!rayOrg, !rayDir))
     | dirDotNormal == 0 = Nothing
-    | intercept >= 0 = Just (intercept, 0)
+    | intercept >= 0 = Just intercept
     | otherwise = Nothing
     where !dirDotNormal = rayDir `dot` planeNormal
           !intercept = ((-planeD) - (rayOrg `dot` planeNormal)) / dirDotNormal
@@ -124,7 +126,7 @@ intersectRayTriangle :: Triangle -> Ray -> Maybe Double
 intersectRayTriangle !triangle !ray =
     case shapeClosestIntersect (plane triangle) ray of
                     Nothing -> Nothing
-                    Just (dist', _) -> if pointInsideTriangle triangle (pointAlongRay ray dist')
+                    Just (dist') -> if pointInsideTriangle triangle (pointAlongRay ray dist')
                                        then Just (dist')
                                        else Nothing
 
@@ -153,8 +155,19 @@ sph = [ Sphere (1e5,  Vec ( 1e5+1,  40.8, 81.6),    Vec (0.0, 0.0, 0.0), Vec (0.
       , Sphere (1e5,  Vec (50, 1e5, 81.6),          Vec (0.0, 0.0, 0.0), Vec (0.75, 0.75, 0.75),  Diff)   -- Bottom
       , Sphere (1e5,  Vec (50,-1e5+81.6,81.6),      Vec (0.0, 0.0, 0.0), Vec (0.75, 0.75, 0.75),  Diff)   -- Top
       --, Sphere (16.5, Vec (27, 16.5, 47),           Vec (0.0, 0.0, 0.0), Vec (1,1,1) `mul` 0.999, Spec)   -- Mirror
-      --, Sphere (16.5, Vec (73, 16.5, 78),           Vec (0.0, 0.0, 0.0), Vec (1,1,1) `mul` 0.999, Refr)   -- Glass
-      , EasyTriangle (Vec(0,0,50), Vec(0,100,50), Vec (100,0, 50),    Vec (73, 16.5, 78),Vec (12,12,12), Vec (1,1,1) `mul` 0.999, Diff)   -- Glass
+      --, Sphere (16.5,
+       --Vec (73, 16.5, 78),Vec (0.0, 0.0, 0.0), Vec (1,1,1) `mul` 0.999, Refr)   -- Glass
+      , EasyTriangle (Vec(0,0,50), Vec(0,60,100), Vec (60,0, 50),
+       Vec (73, 16.5, 78),Vec (0.0, 0.0, 0.0), Vec (0.25, 0.25, 0.75), Diff)   -- Blue Triangle
+      , EasyTriangle (Vec(20,20, 100), Vec(0,60,100), Vec (60,0, 50),
+       Vec (73, 16.5, 78),Vec (0.0, 0.0, 0.0), Vec (1,1,1) `mul` 0.999, Diff)   -- White Triangle
+
+      , EasyTriangle (Vec(90,80,0), Vec(0,60,100), Vec (60,0, 50),
+       Vec (73, 16.5, 78),Vec (0.0, 0.0, 0.0),  Vec (1,1,1) `mul` 0.999, Refr)   -- Glass Triangle
+      --, EasyTriangle (Vec(60,0, 50), Vec(0,60,100), Vec (100,100,0),
+       --Vec (73, 16.5, 78),Vec (0.0, 0.0, 0.0), Vec (0.75, 0.25, 0.25), Diff)   -- Red Triangle
+
+      --, EasyTriangle (Vec(0,0,20), Vec(0,40,20), Vec (60,0, 50),    Vec (73, 16.5, 78),Vec (0,0,0),  Vec (1,1,1) `mul` 0.999, Refr)   -- Glass
       , Sphere (600,  Vec (50, 681.6 - 0.27, 81.6), Vec (12, 12, 12),    Vec (0, 0, 0),           Diff) ] -- Light
 
 -- Utility functions
@@ -163,14 +176,14 @@ clamp = (max 0.0) . (min 1.0)
 
 intersects :: Scene -> Ray -> (Maybe Double, Int)
 intersects scene ray = if null lst then (Nothing, undefined) else minimum lst
-    where lst = filter (not . null . fst) $ zip [ intersect sph ray | sph <- scene ] [0..]
+    where lst = filter (not . null . fst) $ zip [ intersect obj ray | obj <- scene ] [0..]
 
 nextDouble :: State PureMT Double
 nextDouble = state $ randomDouble
 
 radiance :: Scene -> Ray -> Int -> State PureMT Vec
 radiance scene ray depth = case (intersects scene ray) of
-    (Nothing, _) -> return $ Vec (0.0, 0.0, 0.0)
+    (Nothing, _) -> return $ Vec (0.0,0.0,0.0)
     (Just t,  i) -> do
         r0 <- nextDouble
         r1 <- nextDouble
@@ -231,6 +244,11 @@ radiance scene ray depth = case (intersects scene ray) of
 toByte :: Double -> W.Word8
 toByte x = truncate (((clamp x) ** (1.0 / 2.2)) * 255.0) :: W.Word8
 
+-- Loads words from a text file into a list.
+getWords :: FilePath -> IO [String]
+getWords path = do contents <- readFile path
+                   return (words contents)
+                   
 subsample :: State PureMT (Double, Double)
 subsample = do
     r1 <- fmap (* 2) nextDouble
@@ -252,6 +270,7 @@ tracePath scene cam x y w h spp = do
     let rays = [ Ray ((org cam) + (d `mul` 140.0), (norm d)) | d <- dirs ]
     pixels <- sequence [ (radiance scene r 0) | r <- (foldr1 (++) $ take spp $ repeat rays) ]
     return $ (foldr1 (+) pixels) `mul` (1 / (4 * fromIntegral spp))
+
 
 main :: IO ()
 main = do
