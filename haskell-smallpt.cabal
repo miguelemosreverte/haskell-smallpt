@@ -21,6 +21,6 @@ executable haskell-smallpt
   ghc-options:         -threaded -fwarn-unused-do-bind
   -- other-modules:
   -- other-extensions:
-  build-depends:       base >=4.8 && <4.9, mtl >=2.2 && <2.3, monad-parallel >= 0.7 && <0.8,JuicyPixels >=3.2 && <3.3, time >=1.5 && <1.6, vector >=0.11 && <0.12, mersenne-random-pure64 >=0.2 && <0.3
+  build-depends:       base >=4.8 && <4.9, mtl >=2.2 && <2.3, monad-parallel >= 0.7 && <0.8,JuicyPixels >=3.2 && <3.3, time >=1.5 && <1.6, vector >=0.11 && <0.12, mersenne-random-pure64 >=0.2 && <0.3, text
   -- hs-source-dirs:
   default-language:    Haskell2010
