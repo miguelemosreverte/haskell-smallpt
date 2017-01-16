@@ -12,8 +12,7 @@ import qualified Data.Word as W
 import qualified Data.Vector.Storable as V
 import System.Random.Mersenne.Pure64
 import Debug.Trace
-import qualified Data.Text    as Text
-import qualified Data.Text.IO as Text
+import Parser
 
 -- Vec
 data Vec = Vec (Double, Double, Double) deriving (Show, Eq)
@@ -108,6 +107,15 @@ makePlane !v1 !v2 !v3 = Plane (tangent, binormal, normal) (-(v1 `dot` normal))
       !normal = norm (surfaceNormal v1 v2 v3)
       !tangent = norm (v2 - v1)
       !binormal = norm (v3 - v1)
+{-
+ , EasyTriangle (Vec(0,0,50), Vec(0,60,100), Vec (60,0, 50),
+  Vec (73, 16.5, 78),Vec (0.0, 0.0, 0.0), Vec (0.25, 0.25, 0.75), Diff)   -- Blue Triangle
+  -}
+changeVec :: Vec -> Vec
+changeVec vec = vec --`mul`200 + Vec(20,0,20)
+makeEasyTriangleInterface::((Double,Double,Double),(Double,Double,Double),(Double,Double,Double))->Primitive
+makeEasyTriangleInterface(v0,v1,v2) = EasyTriangle(changeVec (Vec(v0)), changeVec (Vec(v1)),changeVec (Vec(v2)),
+  Vec (73, 16.5, 78),Vec (12,12,12), Vec (0,0,0), Diff)
 -- Make a triangle
 makeTriangle :: Vec -> Vec -> Vec -> Triangle
 makeTriangle !v1 !v2 !v3 = Triangle verts newPlane newHalfPlanes
@@ -155,19 +163,7 @@ sph = [ Sphere (1e5,  Vec ( 1e5+1,  40.8, 81.6),    Vec (0.0, 0.0, 0.0), Vec (0.
       , Sphere (1e5,  Vec (50, 1e5, 81.6),          Vec (0.0, 0.0, 0.0), Vec (0.75, 0.75, 0.75),  Diff)   -- Bottom
       , Sphere (1e5,  Vec (50,-1e5+81.6,81.6),      Vec (0.0, 0.0, 0.0), Vec (0.75, 0.75, 0.75),  Diff)   -- Top
       --, Sphere (16.5, Vec (27, 16.5, 47),           Vec (0.0, 0.0, 0.0), Vec (1,1,1) `mul` 0.999, Spec)   -- Mirror
-      --, Sphere (16.5,
-       --Vec (73, 16.5, 78),Vec (0.0, 0.0, 0.0), Vec (1,1,1) `mul` 0.999, Refr)   -- Glass
-      , EasyTriangle (Vec(0,0,50), Vec(0,60,100), Vec (60,0, 50),
-       Vec (73, 16.5, 78),Vec (0.0, 0.0, 0.0), Vec (0.25, 0.25, 0.75), Diff)   -- Blue Triangle
-      , EasyTriangle (Vec(20,20, 100), Vec(0,60,100), Vec (60,0, 50),
-       Vec (73, 16.5, 78),Vec (0.0, 0.0, 0.0), Vec (1,1,1) `mul` 0.999, Diff)   -- White Triangle
-
-      , EasyTriangle (Vec(90,80,0), Vec(0,60,100), Vec (60,0, 50),
-       Vec (73, 16.5, 78),Vec (0.0, 0.0, 0.0),  Vec (1,1,1) `mul` 0.999, Refr)   -- Glass Triangle
-      --, EasyTriangle (Vec(60,0, 50), Vec(0,60,100), Vec (100,100,0),
-       --Vec (73, 16.5, 78),Vec (0.0, 0.0, 0.0), Vec (0.75, 0.25, 0.25), Diff)   -- Red Triangle
-
-      --, EasyTriangle (Vec(0,0,20), Vec(0,40,20), Vec (60,0, 50),    Vec (73, 16.5, 78),Vec (0,0,0),  Vec (1,1,1) `mul` 0.999, Refr)   -- Glass
+      --, Sphere (16.5, Vec (73, 16.5, 78),Vec (0.0, 0.0, 0.0), Vec (1,1,1) `mul` 0.999, Refr)   -- Glass
       , Sphere (600,  Vec (50, 681.6 - 0.27, 81.6), Vec (12, 12, 12),    Vec (0, 0, 0),           Diff) ] -- Light
 
 -- Utility functions
@@ -244,11 +240,6 @@ radiance scene ray depth = case (intersects scene ray) of
 toByte :: Double -> W.Word8
 toByte x = truncate (((clamp x) ** (1.0 / 2.2)) * 255.0) :: W.Word8
 
--- Loads words from a text file into a list.
-getWords :: FilePath -> IO [String]
-getWords path = do contents <- readFile path
-                   return (words contents)
-                   
 subsample :: State PureMT (Double, Double)
 subsample = do
     r1 <- fmap (* 2) nextDouble
@@ -274,31 +265,42 @@ tracePath scene cam x y w h spp = do
 
 main :: IO ()
 main = do
-    args <- getArgs
-    let argc = length args
-    let w   = if argc >= 1 then (read (args !! 0)) else 400 :: Int
-    let h   = if argc >= 2 then (read (args !! 1)) else 300 :: Int
-    let spp = if argc >= 3 then (read (args !! 2)) else 4   :: Int
 
-    startTime <- getCurrentTime
+  args <- getArgs
+  let argc = length args
+  let w   = if argc >= 1 then (read (args !! 0)) else 400 :: Int
+  let h   = if argc >= 2 then (read (args !! 1)) else 300 :: Int
+  let spp = if argc >= 3 then (read (args !! 2)) else 4   :: Int
 
-    putStrLn "--- haskell-smallpt ---"
-    putStrLn " usage: ./haskell-smallpt [width] [height] [samples]"
-    putStrLn $ "  width = " ++ (show w)
-    putStrLn $ " height = " ++ (show h)
-    putStrLn $ "    spp = " ++ (show spp)
+  startTime <- getCurrentTime
 
-    let ww = fromIntegral w :: Double
-    let hh = fromIntegral h :: Double
+  putStrLn "--- haskell-smallpt ---"
+  putStrLn " usage: ./haskell-smallpt [width] [height] [samples]"
+  putStrLn $ "  width = " ++ (show w)
+  putStrLn $ " height = " ++ (show h)
+  putStrLn $ "    spp = " ++ (show spp)
 
-    gen <- newPureMT
+  let ww = fromIntegral w :: Double
+  let hh = fromIntegral h :: Double
 
-    let cam = Ray (Vec (50, 52, 295.6), (norm $ Vec (0, -0.042612, -1)));
-    let pixels = evalState (sequence $ [ (tracePath sph cam x y ww hh spp) | y <- [hh-1,hh-2..0], x <- [0..ww-1] ]) gen
-    let pixelData = map toByte $ (foldr (\col lst -> [(x col), (y col), (z col)] ++ lst) [] pixels)
-    let pixelBytes = V.fromList pixelData :: V.Vector W.Word8
-    let img = Image { imageHeight = h, imageWidth = w, imageData = pixelBytes } :: Image PixelRGB8
-    writePng "image.png" img
+  a <-getTrianglesConstructorsFromData "asd" "ad"
 
-    endTime <- getCurrentTime
-    print $ diffUTCTime endTime startTime
+  print $ show(a)
+
+  let b = map makeEasyTriangleInterface a
+  let xxx = sph ++ b
+
+  --print $ show(b)
+
+  gen <- newPureMT
+
+
+  let cam = Ray (Vec (50, 52, 295.6), (norm $ Vec (0, -0.042612, -1)));
+  let pixels = evalState (sequence $ [ (tracePath xxx cam x y ww hh spp) | y <- [hh-1,hh-2..0], x <- [0..ww-1] ]) gen
+  let pixelData = map toByte $ (foldr (\col lst -> [(x col), (y col), (z col)] ++ lst) [] pixels)
+  let pixelBytes = V.fromList pixelData :: V.Vector W.Word8
+  let img = Image { imageHeight = h, imageWidth = w, imageData = pixelBytes } :: Image PixelRGB8
+  writePng "image.png" img
+
+  endTime <- getCurrentTime
+  print $ diffUTCTime endTime startTime
