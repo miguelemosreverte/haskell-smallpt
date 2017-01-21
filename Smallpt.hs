@@ -112,10 +112,17 @@ makePlane !v1 !v2 !v3 = Plane (tangent, binormal, normal) (-(v1 `dot` normal))
   Vec (73, 16.5, 78),Vec (0.0, 0.0, 0.0), Vec (0.25, 0.25, 0.75), Diff)   -- Blue Triangle
   -}
 changeVec :: Vec -> Vec
-changeVec vec = vec --`mul`200 + Vec(20,0,20)
+changeVec vec = vec `mul`10 + Vec(0,50,-25)
+
 makeEasyTriangleInterface::((Double,Double,Double),(Double,Double,Double),(Double,Double,Double))->Primitive
 makeEasyTriangleInterface(v0,v1,v2) = EasyTriangle(changeVec (Vec(v0)), changeVec (Vec(v1)),changeVec (Vec(v2)),
-  Vec (73, 16.5, 78),Vec (12,12,12), Vec (0,0,0), Diff)
+  Vec (73, 16.5, 78),Vec (0,0,0), Vec (1,1,1)`mul`0.999, Diff)
+
+{--
+makeEasyTriangleInterface::((Double,Double,Double),(Double,Double,Double),(Double,Double,Double))->Primitive
+makeEasyTriangleInterface(v0,v1,v2) =
+  Sphere (15,  Vec(27.0, 16.5, 47.0), Vec (12, 12, 12),    Vec (0, 0, 0),           Diff)
+--}
 -- Make a triangle
 makeTriangle :: Vec -> Vec -> Vec -> Triangle
 makeTriangle !v1 !v2 !v3 = Triangle verts newPlane newHalfPlanes

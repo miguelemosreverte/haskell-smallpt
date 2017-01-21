@@ -1,3 +1,4 @@
+import qualified Numeric
 import qualified Data.Maybe
 import qualified Data.Text    as Text
 import qualified Data.Text.IO as Text
@@ -12,24 +13,29 @@ getLines :: FilePath -> IO [String]
 getLines path = do contents <- readFile path
                    return (lines contents)
 
-parseLineVertices :: String -> Maybe(Float,Float,Float)
+parseLineVertices :: String -> Maybe(Double,Double,Double)
 parseLineVertices str = case words str of
-    (a : b : c : d : e : f) ->  Just((read a ::Float), (read b::Float), (read c::Float))
+    (a : b : c : d : e : f) ->  Just((read a ::Double), (read b::Double), (read c::Double))
     _ -> Nothing
 
 
-parseLineTriangles :: String -> Maybe(Float,Float,Float)
+
+parseLineTriangles :: String -> Maybe(Int,Int,Int)
 parseLineTriangles str = case words str of
-    ("3" : b : c : d : _) -> Just((read b ::Float), (read c::Float), (read d::Float))
+    ("3" : b : c : d : _) -> Just((read b ::Int), (read c::Int), (read d::Int))
     _ -> Nothing
 
 
+prepareOutputVertices :: (Double,Double,Double) -> String
+prepareOutputVertices (a,b,c) = show a ++ " " ++ show b ++ " " ++ show c
+prepareOutputTriangles :: (Int,Int,Int) -> String
+prepareOutputTriangles (a,b,c) = show a ++ " " ++ show b ++ " " ++ show c
 
 main :: IO ()
 main = do
-      putStrLn "--- testing ---"
-
       vertex_list <-getLines "decimated_standford_bunny.ply"
       let parsed_vertex_list = Data.Maybe.catMaybes $ map parseLineVertices vertex_list
       let parsed_triangles_list = Data.Maybe.catMaybes $ map parseLineTriangles vertex_list
-      putStrLn (show parsed_triangles_list)
+
+      writeFile "vertices.txt"  (unlines (map prepareOutputVertices parsed_vertex_list))
+      writeFile "triangles.txt"  (unlines (map prepareOutputTriangles parsed_triangles_list))

@@ -2,6 +2,7 @@ haskell-smallpt
 ===
 
 > Haskell implementation for "smallpt" (small path tracing). The code is written for read clarity, so it is a little longer than the original C version.
+>This version of the Haskell implementation for "smallpt" brings support of object files to the table, as seen in the picture, where the Standford  bunny has been rendered correctly.
 
 ## Usage
 
@@ -20,4 +21,4 @@ $ cabal run [width] [height] [samples]
 
 ## License
 
-MIT License 2015 (c) tatsy, Tatsuya Yatagawa
+MIT License 2015 (c) tatsy, Tatsuya Yatagawa, Miguel Lemos
