@@ -149,7 +149,7 @@ intersect :: Primitive -> Ray -> Maybe Double
 intersect tri@(EasyTriangle (v0,v1,v2, _, _, _, _)) ray =
   intersectRayTriangle (makeTriangle v0 v1 v2) ray
 
-intersect sph@(Sphere (rad, pos, _, _, _)) ray@(Ray (org, dir)) =
+intersect implicit_geometry@(Sphere (rad, pos, _, _, _)) ray@(Ray (org, dir)) =
     if det < 0.0 then Nothing else f t1 t2
     where op    = pos - org
           b     = op `dot` dir
@@ -162,8 +162,8 @@ intersect sph@(Sphere (rad, pos, _, _, _)) ray@(Ray (org, dir)) =
 
 -- Scene
 type Scene = [Primitive]
-sph :: Scene
-sph = [ Sphere (1e5,  Vec ( 1e5+1,  40.8, 81.6),    Vec (0.0, 0.0, 0.0), Vec (0.75, 0.25, 0.25),  Diff)   -- Left
+implicit_geometry :: Scene
+implicit_geometry = [ Sphere (1e5,  Vec ( 1e5+1,  40.8, 81.6),    Vec (0.0, 0.0, 0.0), Vec (0.75, 0.25, 0.25),  Diff)   -- Left
       , Sphere (1e5,  Vec (-1e5+99, 40.8, 81.6),    Vec (0.0, 0.0, 0.0), Vec (0.25, 0.25, 0.75),  Diff)   -- Right
       , Sphere (1e5,  Vec (50.0, 40.8,  1e5),       Vec (0.0, 0.0, 0.0), Vec (0.75, 0.75, 0.75),  Diff)   -- Back
       , Sphere (1e5,  Vec (50.0, 40.8, -1e5+170),   Vec (0.0, 0.0, 0.0), Vec (0.0, 0.0, 0.0),     Diff)   -- Front
@@ -290,12 +290,12 @@ main = do
   let ww = fromIntegral w :: Double
   let hh = fromIntegral h :: Double
 
-  a <-getTrianglesConstructorsFromData "asd" "ad"
+  triangles_constructors_list <-getTrianglesConstructorsFromData "" ""
 
-  print $ show(a)
+  --print $ show(a)
 
-  let b = map makeEasyTriangleInterface a
-  let xxx = sph ++ b
+  let modified_triangles_constructors = map makeEasyTriangleInterface triangles_constructors_list
+  let final_scene = implicit_geometry ++ modified_triangles_constructors
 
   --print $ show(b)
 
@@ -303,7 +303,7 @@ main = do
 
 
   let cam = Ray (Vec (50, 52, 295.6), (norm $ Vec (0, -0.042612, -1)));
-  let pixels = evalState (sequence $ [ (tracePath xxx cam x y ww hh spp) | y <- [hh-1,hh-2..0], x <- [0..ww-1] ]) gen
+  let pixels = evalState (sequence $ [ (tracePath final_scene cam x y ww hh spp) | y <- [hh-1,hh-2..0], x <- [0..ww-1] ]) gen
   let pixelData = map toByte $ (foldr (\col lst -> [(x col), (y col), (z col)] ++ lst) [] pixels)
   let pixelBytes = V.fromList pixelData :: V.Vector W.Word8
   let img = Image { imageHeight = h, imageWidth = w, imageData = pixelBytes } :: Image PixelRGB8
