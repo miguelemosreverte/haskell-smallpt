@@ -4,15 +4,18 @@ module Parser where
 
 import qualified Data.Text    as Text
 import qualified Data.Text.IO as Text
+import ProceduralFilesCreator
 {-
  , EasyTriangle (Vec(0,0,50), Vec(0,60,100), Vec (60,0, 50),
   Vec (73, 16.5, 78),Vec (0.0, 0.0, 0.0), Vec (0.25, 0.25, 0.75), Diff)   -- Blue Triangle
   -}
 
 -- Loads lines from a text file into a list.
+{-
 getLines :: FilePath -> IO [String]
 getLines path = do contents <- readFile path
                    return (lines contents)
+-}
 parseVerticesLine :: String -> (Double,Double,Double)
 parseVerticesLine str = case words str of
     (a : b : c : _) ->  ((read a ::Double), (read b::Double), (read c::Double))
@@ -49,6 +52,7 @@ constructTriangleFromItsVertexIndexes verticesIndices parsed_vertex_list =
 getTrianglesConstructorsFromData:: FilePath -> FilePath -> IO[((Double,Double,Double),(Double,Double,Double),(Double,Double,Double))]
 getTrianglesConstructorsFromData vertices triangles =
   do
+    pepe
     vertex_list <-getLines "vertices.txt"
     triangles_list <-getLines "triangles.txt"
     let parsed_vertex_list = map parseVerticesLine vertex_list

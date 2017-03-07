@@ -1,3 +1,5 @@
+
+module ProceduralFilesCreator where
 import qualified Numeric
 import qualified Data.Maybe
 import qualified Data.Text    as Text
@@ -31,8 +33,8 @@ prepareOutputVertices (a,b,c) = show a ++ " " ++ show b ++ " " ++ show c
 prepareOutputTriangles :: (Int,Int,Int) -> String
 prepareOutputTriangles (a,b,c) = show a ++ " " ++ show b ++ " " ++ show c
 
-main :: IO ()
-main = do
+pepe :: IO ()
+pepe = do
       vertex_list <-getLines "decimated_standford_bunny.ply"
       let parsed_vertex_list = Data.Maybe.catMaybes $ map parseLineVertices vertex_list
       let parsed_triangles_list = Data.Maybe.catMaybes $ map parseLineTriangles vertex_list
