@@ -33,8 +33,8 @@ prepareOutputVertices (a,b,c) = show a ++ " " ++ show b ++ " " ++ show c
 prepareOutputTriangles :: (Int,Int,Int) -> String
 prepareOutputTriangles (a,b,c) = show a ++ " " ++ show b ++ " " ++ show c
 
-pepe :: IO ()
-pepe = do
+createTrianglesAndVerticesFiles :: IO ()
+createTrianglesAndVerticesFiles = do
       vertex_list <-getLines "decimated_standford_bunny.ply"
       let parsed_vertex_list = Data.Maybe.catMaybes $ map parseLineVertices vertex_list
       let parsed_triangles_list = Data.Maybe.catMaybes $ map parseLineTriangles vertex_list

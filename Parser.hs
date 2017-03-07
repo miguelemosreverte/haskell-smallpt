@@ -52,7 +52,7 @@ constructTriangleFromItsVertexIndexes verticesIndices parsed_vertex_list =
 getTrianglesConstructorsFromData:: FilePath -> FilePath -> IO[((Double,Double,Double),(Double,Double,Double),(Double,Double,Double))]
 getTrianglesConstructorsFromData vertices triangles =
   do
-    pepe
+    createTrianglesAndVerticesFiles
     vertex_list <-getLines "vertices.txt"
     triangles_list <-getLines "triangles.txt"
     let parsed_vertex_list = map parseVerticesLine vertex_list
